@@ -5,12 +5,11 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,33 +21,39 @@ import org.apache.log4j.PropertyConfigurator;
  * @author Andrew
  */
 public class Parse {
+    private static final String logName = "wu-service";
     private final static Logger csv = Logger.getLogger("csv");
     private static String path = "";
-    private static List<Stat> requests = new ArrayList<Stat>();
-    private static List<Stat> responseBody = new ArrayList<Stat>();
-    private static String date = "";
-    private static String time = "";
-    private static Pattern r;
-    private static Pattern timeStamp;
+    private static final String strPattern = "(\\[(.*?)\\])( )(\\[(.*?)\\])( )(\\[(.*?)\\])( )(\\[(.*?)\\])(.*)(.*)";
+    public static Pattern pattern = Pattern.compile(strPattern);
+    public static Map<Integer, Stat> dispatchers = new TreeMap<>();
+    public static Map<String, Stat> sessions = new TreeMap<>();
     
     public static void main(String[] args) {
-        // "03:05:27,499";
-        String timePattern = "\\d{2}:\\d{2}:\\d{2}\\,\\d{3}";
-        timeStamp = Pattern.compile(timePattern);
-        // "03:05:27,499  INFO PortSenderThreadPORT-103 etisalat-gate:run:157 - Port 103. Got Command = CommandSet{id=6846232, commands=[Command{body=*130*5462*20*0502712443*1#}]}";
-        String reqPattern = "(\\d{2}:\\d{2}:\\d{2}\\,\\d{3})(.*\\{)(.*)";
-        r = Pattern.compile(reqPattern);
         
-        Matcher m = timeStamp.matcher("03:05:27,499");
-        if (m.find( )) {
-            System.out.println("Found value: " + m.group());
-            //System.out.println("Found value: " + m.group(2));
-            //System.out.println("Found value: " + m.group(3));
+        String e1 = "[INFO] [09/01/2014 06:16:47.151] [wu-ws-system-akka.actor.default-dispatcher-15] [akka://wu-ws-system/user/wu-ws-service] /user?login=5000003710&pin=4604&emirates_id=63&enroll_my_wu=false&kiosk_id=629";
+        String e2 = "[INFO] [09/01/2014 06:16:47.440] [wu-ws-system-akka.actor.default-dispatcher-15] [$Proxy32(akka://wu-ws-system)] Request:";
+        String e3 = "net.fmb.ws.wu.exceptions.package$NotFound: Invalid user credentials";
+        String e4 = "[INFO] [09/08/2014 09:38:02.380] [wu-ws-system-akka.actor.default-dispatcher-852] [package$(akka://wu-ws-system)] fees1 (40000): Map(promoDiscountAmount -> 0, testQuestionAvailable -> P, principalAmount -> 40000, exchangeRate -> 27.4609307, charges -> 2500, conversionFee -> null, payAmount -> 1098437, grossTotalAmount -> 42500)";
+        String e5 = "[INFO] [09/08/2014 09:38:02.790] [wu-ws-system-akka.actor.default-dispatcher-852] [$Proxy41(akka://wu-ws-system)] Request:";
+        String e6 = "[WARN] [09/08/2014 09:37:09.585] [wu-ws-system-akka.actor.default-dispatcher-845] [akka://wu-ws-system/user/wu-ws-service] net.fmb.ws.wu.exceptions.package$NotFound: Invalid user credentials encountered while handling request: HttpRequest(GET,http://162.13.59.165:8080/wui/user?login=5000003977&pin=5239&emirates_id=59&enroll_my_wu=false&kiosk_id=469,List(Host: 162.13.59.165:8080, User-Agent: Jakarta Commons-HttpClient/3.1),Empty,HTTP/1.1)";
+        String e7 = "[INFO] [09/01/2014 04:38:47.517] [wu-ws-system-akka.actor.default-dispatcher-2] [akka://wu-ws-system/user/IO-HTTP/listener-0] Bound to /0.0.0.0:8080";
+        //String strPattern = "(\\[(.*?)\\])( )(\\[(.*?)\\])( )(\\[(.*?)\\])( )(\\[(.*?)\\])(.*)(.*)";
+        //pattern = Pattern.compile(strPattern);
+        
+        Matcher matcher = pattern.matcher(e7);
+        if (matcher.find( )) {
+            System.out.println("Count: " + matcher.groupCount());
+            for (int i = 0; i < matcher.groupCount(); i++) {
+                //System.out.println("Group " + i + ":" + matcher.group(i));
+            }
         } else {
            System.out.println("NO MATCH");
         }
         
-        //System.exit(1);
+        //getDispather(e7);
+        
+        //System.exit(0);
         
         // settings for log
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
@@ -58,31 +63,28 @@ public class Parse {
         File cfgFile = new File(args[0]);
         PropertyConfigurator.configure(cfgFile.getAbsolutePath());
         
-        StringBuilder sb = new StringBuilder()
-            .append("Date").append(";")
-            .append("Request time").append(";")
-            .append("Response time").append(";")
-            .append("Request (USSD)").append(";")
-            .append("Response").append(";")
-            .append("Message");
-        csv.debug(sb);
-        
         File[] files = getFilesInDir(path);
-        Set<File> flist = new TreeSet<File>(Arrays.asList(files));
+        Set<File> flist = new TreeSet<>(Arrays.asList(files));
         for (File file : flist) {
             read(file.getAbsolutePath());
         }
         System.out.println("Total files: " + files.length);
         System.out.println("After all:");
-        for (Stat stat : requests) System.out.println(stat);
-        System.out.println("");
-        for (Stat stat : responseBody) System.out.println(stat);
+        for (Stat stat : dispatchers.values()) {
+            System.out.println(stat);
+            csv.debug(stat);
+        }
+        
+        for (Stat stat : sessions.values()) {
+            System.out.println(stat);
+            csv.debug(stat);
+        }
     }
     
     private static File[] getFilesInDir(String path) {
         File[] files = new File(path).listFiles(new FilenameFilter() {
             @Override public boolean accept(File directory, String fileName) {
-                return fileName.startsWith("etisalat-gate.log");
+                return fileName.startsWith(logName);
             }
         });
         
@@ -90,109 +92,59 @@ public class Parse {
     }
     
     // Чтение файла
-    private static List<Stat> read(String filename) {
+    private static void read(String filename) {
         System.out.println("Read " + filename);
-        date = filename.substring(filename.lastIndexOf(".") + 1);
-        System.out.println("DATE:" + date);
-        return readTxtFile(filename);
+        readTxtFile(filename);
     }
     
-    private static List<Stat> readTxtFile(String filename) {
-        boolean add = false;
-        String currTime = "";
-        StringBuilder buffer = new StringBuilder();
+    private static void readTxtFile(String filename) {
         try {
             BufferedReader in = new BufferedReader(new FileReader(filename));
             while (in.ready()) {
                 String s = in.readLine();
-                if (!s.contains("EtisalatWorker")) {
-                    //System.out.println("Parse:" + s);
-                    Matcher m = timeStamp.matcher(s);
-                    if (m.find()) time = m.group();
-
-                    if (s.contains("body=*") || (s.contains("setUssdDwgResults") && !s.contains("Got Result") && !s.contains("Send"))) {
+                Matcher matcher = pattern.matcher(s);
+                if (matcher.find()) {
+                    System.out.println("Parse:" + s);
+                    int dispatcher = getDispather(s);
+                    String msg = matcher.group(matcher.groupCount() - 1).trim();
+                    String sid = getSessionID(s);
+                    
+                    if (msg.startsWith("/user?login")) {
                         Stat stat = new Stat(s);
-                        //System.out.println(stat);
-                        if (stat.isRequest()) requests.add(stat);
-                        else {
-                            boolean gotRequest = false;
-                            Iterator itReq = requests.listIterator();
-                            while(itReq.hasNext() && !gotRequest) {
-                                Stat request = (Stat) itReq.next();
-                                if (request.equals(stat)) {
-                                    Stat body = null;
-                                    if (stat.response.contains("OPERATION_NOT_SUPPORTED")) body = body();
-                                    
-                                    StringBuilder sb = new StringBuilder()
-                                      .append(date)             .append(";")
-                                      .append(request.time)     .append(";")
-                                      .append(stat.time)        .append(";")
-                                      .append(request.request)  .append(";")
-                                      .append(stat.response);//    .append("\n");
-                                    if (body != null) sb.append(";").append(body.msg);
-                                    csv.debug(sb);
-                                    itReq.remove();
-                                    gotRequest = true;
-                                }
-                            }
+                        dispatchers.put(dispatcher, stat);
+                    }
+                    else if (dispatchers.containsKey(dispatcher)) {
+                        Stat stat = dispatchers.get(dispatcher);
+                        stat.add(msg);
+                        if (msg.contains("ASSIGN SESSIONID")) {
+                            sessions.put(sid, stat);
+                            dispatchers.remove(dispatcher);
                         }
                     }
-                    
-                    if (s.contains("message = HEAD{")) { 
-                        add = true;
-                        buffer = new StringBuilder();
-                        
-                        //m = timeStamp.matcher(s);
-                        currTime = m.group();
+                    else if (sessions.containsKey(sid)) {
+                        Stat stat = sessions.get(sid);
+                        stat.add(msg);
+                        dispatchers.put(dispatcher, stat);
+                        sessions.remove(sid);
                     }
-                    if (!time.equals(currTime) && add) {
-                        buffer.append(s);
-                        add = false;
-                        // parse
-                        //System.out.println("Buffer:\n" + buffer + "\n");
-                        Stat stat = new Stat(buffer);
-                        if (!stat.msg.isEmpty())responseBody.add(stat);
-                        /*
-                        boolean gotRequest = false;
-                        Iterator it = requests.listIterator();
-                        while(it.hasNext() && !gotRequest) {
-                            Stat request = (Stat) it.next();
-                            if (request.equals(stat)) {
-                                StringBuilder sb = new StringBuilder()
-                                  .append(date)             .append(";")
-                                  .append(request.time)     .append(";")
-                                  .append(stat.time)        .append(";")
-                                  .append(request.request)  .append(";")
-                                  .append(stat.response)    .append(";")
-                                  .append(stat.message);
-
-                                csv.debug(sb);
-                                it.remove();
-                                gotRequest = true;
-                            }
-                        }
-                        */
+                    else {
+                        System.out.println(s);
                     }
-
-                    if (add) buffer.append(s).append("\n");
-                    
-            }
+                }
             }
             in.close();
         } catch (Exception ex) { System.out.println(ex);  }
-
-        return new ArrayList<Stat>();
     }
     
-    private static Stat body() {
-        Stat body = null;
-        Iterator it = responseBody.iterator();
-        while(it.hasNext()) {
-            Stat stat = (Stat) it.next();
-            body = stat;
-            it.remove();
-        }
-        
-        return body;
+    private static int getDispather(String string) {
+        Matcher m = pattern.matcher(string);
+        m.matches();
+        String s = m.group(8);
+        return Integer.valueOf(s.substring(s.lastIndexOf("-")));
+    }
+    
+    private static String getSessionID(String s) {
+        if (s.contains("SESSIONID")) return s.substring(s.indexOf("="));
+        return "";
     }
 }
