@@ -30,7 +30,6 @@ public class Parse {
     public static Map<String, Stat> sessions = new TreeMap<>();
     
     public static void main(String[] args) {
-        
         String e1 = "[INFO] [09/01/2014 06:16:47.151] [wu-ws-system-akka.actor.default-dispatcher-15] [akka://wu-ws-system/user/wu-ws-service] /user?login=5000003710&pin=4604&emirates_id=63&enroll_my_wu=false&kiosk_id=629";
         String e2 = "[INFO] [09/01/2014 06:16:47.440] [wu-ws-system-akka.actor.default-dispatcher-15] [$Proxy32(akka://wu-ws-system)] Request:";
         String e3 = "net.fmb.ws.wu.exceptions.package$NotFound: Invalid user credentials";
@@ -43,16 +42,13 @@ public class Parse {
         
         Matcher matcher = pattern.matcher(e7);
         if (matcher.find( )) {
-            System.out.println("Count: " + matcher.groupCount());
+            //System.out.println("Count: " + matcher.groupCount());
             for (int i = 0; i < matcher.groupCount(); i++) {
                 //System.out.println("Group " + i + ":" + matcher.group(i));
             }
         } else {
-           System.out.println("NO MATCH");
+           //System.out.println("NO MATCH");
         }
-        
-        //getDispather(e7);
-        
         //System.exit(0);
         
         // settings for log
@@ -96,6 +92,12 @@ public class Parse {
         System.out.println("Read " + filename);
         readTxtFile(filename);
     }
+    
+    // Если логин то обновляем статус. запоминаем диспатчер и далее работаем по нему.
+    // Диспатчеры за день не повторяются
+    // Ждем пока появится SessionID (ASSIGN SESSIONID). 
+    // Запоминаем его и удаляем из диспатчеров тк скорее всего новый диспатчер будет дальше обрабатывать
+    // Если появился SessionID без ASSIGN то ищем Stat и снова запоминаем диспатчер и дальше работем по нему
     
     private static void readTxtFile(String filename) {
         try {
