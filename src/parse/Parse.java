@@ -7,6 +7,7 @@ import java.io.FilenameFilter;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -26,8 +27,10 @@ public class Parse {
     private static String path = "";
     private static final String strPattern = "(\\[(.*?)\\])( )(\\[(.*?)\\])( )(\\[(.*?)\\])( )(\\[(.*?)\\])(.*)(.*)";
     public static Pattern pattern = Pattern.compile(strPattern);
-    public static Map<Integer, Stat> dispatchers = new TreeMap<>();
-    public static Map<String, Stat> sessions = new TreeMap<>();
+    private static Map<Integer, Stat> dispatchers = new TreeMap<>();
+    private static Map<String, Stat> sessions = new TreeMap<>();
+    public static Map<String, String> alfardan = new HashMap<>();
+    public static Map<String, String> sharaf = new HashMap<>();
     
     public static void main(String[] args) {
         String e1 = "[INFO] [09/01/2014 06:16:47.151] [wu-ws-system-akka.actor.default-dispatcher-15] [akka://wu-ws-system/user/wu-ws-service] /user?login=5000003710&pin=4604&emirates_id=63&enroll_my_wu=false&kiosk_id=629";
@@ -55,8 +58,12 @@ public class Parse {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
         System.setProperty("current.date", dateFormat.format(new Date()));
         // set path
-        if (args.length > 1) path = args[1];
+        
         File cfgFile = new File(args[0]);
+        path = args[1];
+        readWUData(args[2]);
+        System.out.println(alfardan);
+        System.out.println(sharaf);
         PropertyConfigurator.configure(cfgFile.getAbsolutePath());
         
         File[] files = getFilesInDir(path);
@@ -65,14 +72,14 @@ public class Parse {
             read(file.getAbsolutePath());
         }
         System.out.println("Total files: " + files.length);
-        System.out.println("After all:");
+        //System.out.println("After all:");
         for (Stat stat : dispatchers.values()) {
-            System.out.println(stat);
+            //System.out.println(stat);
             csv.debug(stat);
         }
         
         for (Stat stat : sessions.values()) {
-            System.out.println(stat);
+            //System.out.println(stat);
             csv.debug(stat);
         }
     }
@@ -106,7 +113,7 @@ public class Parse {
                 String s = in.readLine();
                 Matcher matcher = pattern.matcher(s);
                 if (matcher.find()) {
-                    System.out.println("Parse:" + s);
+                    //System.out.println("Parse:" + s);
                     int dispatcher = getDispather(s);
                     String msg = matcher.group(matcher.groupCount() - 1).trim();
                     String sid = getSessionID(s);
@@ -130,9 +137,22 @@ public class Parse {
                         sessions.remove(sid);
                     }
                     else {
-                        System.out.println(s);
+                        //System.out.println(s);
                     }
                 }
+            }
+            in.close();
+        } catch (Exception ex) { System.out.println(ex);  }
+    }
+    
+    private static void readWUData(String filename) {
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(filename));
+            while (in.ready()) {
+                String s = in.readLine();
+                String[] arr = s.split(";");
+                alfardan.put(arr[0], arr[1]);
+                sharaf.put(arr[0], arr[2]);
             }
             in.close();
         } catch (Exception ex) { System.out.println(ex);  }
